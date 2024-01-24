@@ -1,6 +1,7 @@
 import axios, { AxiosResponse } from 'axios'
 import { API_V2_URL } from './constants'
-import { ArticleList, GameData, GameLeaderboard, Run, RunSettings, SettingsResponse, Value, Variable, VideoStatus } from './api-interfaces'
+import { ArticleList, GameData, GameLeaderboard, Run, RunSettings, SettingsResponse, Value, Variable, VideoStatus } from './api-types'
+import SpeedrunCategory from './category'
 
 export default class SpeedrunClient {
   /**
@@ -38,6 +39,12 @@ export default class SpeedrunClient {
     return await axios.get(url)
   }
 
+  /**
+   * Sends a POST request to the specified route of the version 2 of the API
+   * @param route Route, relative to the API base URL
+   * @param body JSON body of the request
+   * @returns 
+   */
   private async postRequest (route: string, body: object = {}): Promise<AxiosResponse> {
     return await axios.post(API_V2_URL + route, body, {
       headers: {
@@ -56,17 +63,7 @@ export default class SpeedrunClient {
     }
   }
 
-  private async getGameData (gameId: string, isUrl: boolean): Promise<GameData | null> {
-    let params:{[key:string]:string}
-    if (isUrl) {
-      params = {
-        gameUrl: gameId
-      }
-    } else {
-      params = {
-        gameId: gameId
-      }
-    }
+  private async getGameData (params:{gameUrl: string} | {gameId: string}): Promise<GameData | null> {
     const response = await this.getRequest('GetGameData', new URLSearchParams(params))
     if (response.status === 200) {
       return response.data as GameData
@@ -81,7 +78,7 @@ export default class SpeedrunClient {
    * @returns 
    */
   async getGameDataById (gameId: string): Promise<GameData | null> {
-    return await this.getGameData(gameId, false)
+    return await this.getGameData({ gameId })
   }
 
   /**
@@ -90,7 +87,7 @@ export default class SpeedrunClient {
    * @returns The game data, or null if the game doesn't exist
    */
   async getGameDataByUrl (gameUrl: string): Promise<GameData | null> {
-    return await this.getGameData(gameUrl, true)
+    return await this.getGameData({ gameUrl })
   }
 
   /**
@@ -285,7 +282,7 @@ export default class SpeedrunClient {
     }
   }
 
-  async getLeaderboardForSubcategory (gameUrl: string, categoryName: string, subcategoryName: string, page: number = 1): Promise<GameLeaderboard | null> {
+  async getSubcategoryFromNames (gameUrl: string, categoryName: string, subcategoryNames: string[]): Promise<SpeedrunCategory | null> {
     const gameData = await this.getGameDataByUrl(gameUrl)
     if (gameData === null) {
       return null
@@ -295,19 +292,32 @@ export default class SpeedrunClient {
     if (categoryId === null) {
       return null
     }
+    const subcategoryValues: { variableId: string, valueId: string }[] = []
+  
+    for (const subcategoryName of subcategoryNames) {
+      const subcategoryInfo = await this.getSubcategoryVariableAndValue(gameUrl, categoryName, subcategoryName)
+      if (subcategoryInfo === null) {
+        return null
+      }
+      subcategoryValues.push(subcategoryInfo)
+    }
 
-    const subcategoryInfo = await this.getSubcategoryVariableAndValue(gameUrl, categoryName, subcategoryName)
-    if (subcategoryInfo === null) {
+    return new SpeedrunCategory(gameId, categoryId, subcategoryValues)
+  }
+
+  async getLeaderboardForSubcategory (gameUrl: string, categoryName: string, subcategoryNames: string[], page: number = 1): Promise<GameLeaderboard | null> {
+    const subcategory = await this.getSubcategoryFromNames(gameUrl, categoryName, subcategoryNames)
+    if (subcategory === null) {
       return null
     }
 
-    const leaderboard = await this.getGameLeaderboard(gameId, categoryId, {
-      values: [
-        {
-          variableId: subcategoryInfo?.variableId as string,
-          valueIds: [subcategoryInfo?.valueId as string]
+    const leaderboard = await this.getGameLeaderboard(subcategory.gameId, subcategory.categoryId, {
+      values: subcategory.subcategories.map(subcategory => {
+        return {
+          variableId: subcategory.variableId,
+          valueIds: [subcategory.valueId]
         }
-      ],
+      }),
       page
     })
 

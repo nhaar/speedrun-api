@@ -1,3 +1,29 @@
+enum ItemType {
+  Like = 1,
+  RUn = 2,
+  ThreadComment = 7,
+  GameNewsPost = 27,
+  SiteNewsPost = 30
+}
+
+enum VerificationStatus {
+  Pending = 0,
+  Verified = 1,
+  Rejected = 2
+}
+
+enum ObsoleteFilterStatus {
+  Hidden = 0,
+  Shown = 1,
+  Exclusive = 2
+}
+
+enum VideoFilterStatus {
+  Optional = 0,
+  Required = 1,
+  Missing = 2
+}
+
 interface Pronoun {
   idk: string
 }
@@ -6,9 +32,24 @@ interface AvatarDecoration {
   idk: string
 }
 
+/**
+ * Contains an image reference
+ */
 interface StaticAsset {
   assetType: string
   path: string
+}
+
+interface Challenge {
+  id: string
+  name: string
+  gameId: string
+  createDate: number
+  updateDate: number
+  startDate: number
+  endDate: number
+  state: number
+
 }
 
 interface Article {

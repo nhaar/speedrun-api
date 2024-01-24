@@ -1,3 +1,3 @@
-import SpeedrunClient from './speedrun-client'
+import SpeedrunClient from './client'
 
 export default SpeedrunClient
