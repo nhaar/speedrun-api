@@ -1,7 +1,7 @@
 import axios, { AxiosResponse } from 'axios'
 import { API_V2_URL } from './constants'
 import { ArticleList, GameData, GameLeaderboard, Run, RunSettings, SettingsResponse, Value, Variable, VideoStatus } from './api-types'
-import SpeedrunCategory from './category'
+import { SpeedrunCategoryId, SpeedrunCategory } from './category'
 
 export default class SpeedrunClient {
   /**
@@ -282,31 +282,39 @@ export default class SpeedrunClient {
     }
   }
 
-  async getSubcategoryFromNames (gameUrl: string, categoryName: string, subcategoryNames: string[]): Promise<SpeedrunCategory | null> {
-    const gameData = await this.getGameDataByUrl(gameUrl)
+  async getSubcategoryIdFromNames (category:SpeedrunCategory): Promise<SpeedrunCategoryId | null> {
+    const gameData = await this.getGameDataByUrl(category.gameUrl)
     if (gameData === null) {
       return null
     }
     const gameId:string = gameData.game.id
-    const categoryId = await this.getCategoryId(gameUrl, categoryName)
+    const categoryId = await this.getCategoryId(category.gameUrl, category.categoryName)
     if (categoryId === null) {
       return null
     }
     const subcategoryValues: { variableId: string, valueId: string }[] = []
   
-    for (const subcategoryName of subcategoryNames) {
-      const subcategoryInfo = await this.getSubcategoryVariableAndValue(gameUrl, categoryName, subcategoryName)
+    for (const subcategoryName of category.subcategoryNames) {
+      const subcategoryInfo = await this.getSubcategoryVariableAndValue(category.gameUrl, category.categoryName, subcategoryName)
       if (subcategoryInfo === null) {
         return null
       }
       subcategoryValues.push(subcategoryInfo)
     }
 
-    return new SpeedrunCategory(gameId, categoryId, subcategoryValues)
+    return { gameId, categoryId, subcategories: subcategoryValues}
   }
 
-  async getLeaderboardForSubcategory (gameUrl: string, categoryName: string, subcategoryNames: string[], page: number = 1): Promise<GameLeaderboard | null> {
-    const subcategory = await this.getSubcategoryFromNames(gameUrl, categoryName, subcategoryNames)
+  /**
+   * Get the game leaderboard object for a category
+   * @param gameUrl URL of the game
+   * @param categoryName 
+   * @param subcategoryNames 
+   * @param page 
+   * @returns 
+   */
+  async getLeaderboardForSubcategory (category:SpeedrunCategory, page: number = 1): Promise<GameLeaderboard | null> {
+    const subcategory = await this.getSubcategoryIdFromNames(category)
     if (subcategory === null) {
       return null
     }
@@ -325,5 +333,27 @@ export default class SpeedrunClient {
       return null
     }
     return leaderboard
+  }
+
+  /**
+   * Gets a list of all the run IDs in a given category
+   * @param category
+   * @returns 
+   */
+  async getAllRunsInCategory (category: SpeedrunCategory): Promise<string[] | null> {
+    let runs:Run[] = []
+    
+    const leaderboard = await this.getLeaderboardForSubcategory(category)
+    if (leaderboard === null) {
+      return null
+    }
+    runs = runs.concat(leaderboard.runList)
+    const totalPages = leaderboard.pagination.pages
+    for (let i = 2; i < totalPages; i++) {
+      const leaderboard = await this.getLeaderboardForSubcategory(category, i)
+      runs = runs.concat(leaderboard.runList)
+    }
+
+    return runs.map(run => run.id)
   }
 }
