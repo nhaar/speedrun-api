@@ -2,11 +2,11 @@ import axios, { AxiosResponse } from 'axios'
 import { API_V2_URL } from './constants'
 import { ArticleList, GameData, GameLeaderboard, Run, RunSettings, SettingsResponse, Value, Variable, VideoStatus } from './api-interfaces'
 
-export default class User {
+export default class SpeedrunClient {
   /**
-   * The session ID that the website uses to identify the user.
+   * The session ID that the website uses to identify the client.
    * 
-   * Currently, the only way to get it is to log in to the website and get it from the cookies.
+   * Currently, the only way to get it is to log in to the website and get it from the cookies in the headers of a request.
    */
   sessionId: string
 
