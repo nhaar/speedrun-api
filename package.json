@@ -1,6 +1,6 @@
 {
   "name": "speedrun-api",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Implementation of the speedrun.com REST API",
   "scripts": {},
   "author": "nhaar",

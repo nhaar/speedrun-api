@@ -1,7 +1,30 @@
 import axios, { AxiosResponse } from 'axios'
 import { API_V2_URL } from './constants'
-import { ArticleList, GameData, GameLeaderboard, Run, RunSettings, SettingsResponse, Value, Variable, VideoStatus } from './api-types'
+import { ArticleList, GameData, GameLeaderboard, ObsoleteFilterStatus, Run, RunSettings, SettingsResponse, Value, Variable, VideoStatus } from './api-types'
 import { SpeedrunCategoryId, SpeedrunCategory } from './category'
+
+/**
+ * Object that contains the optional parameters for editting a run; it is similar to the RunSettings object, but focusing in having only the parameters that can be edited and being optional.
+ */
+interface EditParams {
+  gameId?: string,
+  categoryId?: string,
+  playerNames?: string[],
+  time?: { hour:number, minute: number, second:number, milisecond: number},
+  platformId?: string,
+  emulator?: string,
+  video?: string,
+  comment?: string,
+  date?: string,
+  values?: {
+    variableId: string
+    valueId: string
+  }[],
+}
+
+interface LeaderboardFilterParams {
+  obsolete?: ObsoleteFilterStatus
+}
 
 export default class SpeedrunClient {
   /**
@@ -12,14 +35,22 @@ export default class SpeedrunClient {
   sessionId: string
 
   /**
-   * Session ID required for making requests that require authentication. You can leave it empty if you don't need to make 
-   * such requests.
+   * An authorization token for some requests.
    * 
-   * The cookie has the format `PHPSESSID={id}`. You can pass the parameter as either the whole cookie or just the id.
-   * @param sessionId 
+   * Currently can only be obtained by inspecting your browser.
    */
-  constructor (sessionId: string = '') {
+  csrfToken: string
+
+  /**
+   * 
+   * @param sessionId Session ID required for making requests that require authentication. You can leave it empty if you don't need to make such requests.
+    
+   The cookie has the format `PHPSESSID={id}`. You can pass the parameter as either the whole cookie or just the id.
+   * @param csrfToken Token required for making some requests that require authentication. You can leave it empty if you don't need to make such requests.
+   */
+  constructor (sessionId: string = '', csrfToken: string = '') {
     this.sessionId = sessionId
+    this.csrfToken = csrfToken
 
     if (sessionId.startsWith('PHPSESSID=')) {
       this.sessionId = sessionId.split('=')[1]
@@ -45,7 +76,10 @@ export default class SpeedrunClient {
    * @param body JSON body of the request
    * @returns 
    */
-  private async postRequest (route: string, body: object = {}): Promise<AxiosResponse> {
+  private async postRequest (route: string, body: {[key: string]: any} = {}, useToken: boolean = false): Promise<AxiosResponse> {
+    if (useToken) {
+      body.csrfToken = this.csrfToken
+    }
     return await axios.post(API_V2_URL + route, body, {
       headers: {
         'Content-Type': 'application/json',
@@ -135,7 +169,7 @@ export default class SpeedrunClient {
       video?: VideoStatus,
       verified?: boolean,
       timer?: number,
-      obsolete?: boolean,
+      obsolete?: ObsoleteFilterStatus,
       platformIds?: string[],
       regionIds?: string[],
       dateFrom?: string,
@@ -192,42 +226,29 @@ export default class SpeedrunClient {
     const response = await this.postRequest('PutRunSettings', {
       settings,
       autoverify
-    })
+    }, true)
     return response.status === 200
   }
 
+  /**
+   * Edit a run's information.
+   * 
+   * Requires CSRF authentication.
+   * @param runId 
+   * @param params Object containing all the parameters that should be editted. Omitting parameters will leave them unchanged. 
+   * @returns 
+   */
   async editRun (
     runId: string,
-    gameId: string | undefined = undefined,
-    categoryId: string | undefined = undefined,
-    playerNames: string[] | undefined = undefined,
-    time: { hour:number, minute: number, second:number, milisecond: number} | undefined = undefined,
-    platformId: string | undefined = undefined,
-    emulator: string | undefined = undefined,
-    video: string | undefined = undefined,
-    comment: string | undefined = undefined,
-    date: string | undefined = undefined,
-    values: Value[] | undefined = undefined,
+    params: EditParams
   ): Promise<boolean> {
     
     const originalRun = await this.getRunSettings(runId)
     if (originalRun === null) {
       return false
     }
-    const newSettings = {
-      gameId,
-      categoryId,
-      playerNames,
-      time,
-      platformId,
-      emulator,
-      video,
-      comment,
-      date,
-      values,
-    }
 
-    const finalSettings = Object.assign(originalRun, newSettings)
+    const finalSettings = Object.assign(originalRun, params)
 
     const response = await this.putRunSettings(finalSettings, true)
     return response
@@ -313,7 +334,7 @@ export default class SpeedrunClient {
    * @param page 
    * @returns 
    */
-  async getLeaderboardForSubcategory (category:SpeedrunCategory, page: number = 1): Promise<GameLeaderboard | null> {
+  async getLeaderboardForSubcategory (category:SpeedrunCategory, leaderboardParams: LeaderboardFilterParams, page:number = 1): Promise<GameLeaderboard | null> {
     const subcategory = await this.getSubcategoryIdFromNames(category)
     if (subcategory === null) {
       return null
@@ -326,6 +347,7 @@ export default class SpeedrunClient {
           valueIds: [subcategory.valueId]
         }
       }),
+      obsolete: leaderboardParams.obsolete,
       page
     })
 
@@ -343,17 +365,125 @@ export default class SpeedrunClient {
   async getAllRunsInCategory (category: SpeedrunCategory): Promise<string[] | null> {
     let runs:Run[] = []
     
-    const leaderboard = await this.getLeaderboardForSubcategory(category)
+    const filterParams = {
+      obsolete: ObsoleteFilterStatus.Shown
+    }
+    const leaderboard = await this.getLeaderboardForSubcategory(category, filterParams)
     if (leaderboard === null) {
       return null
     }
     runs = runs.concat(leaderboard.runList)
     const totalPages = leaderboard.pagination.pages
     for (let i = 2; i < totalPages; i++) {
-      const leaderboard = await this.getLeaderboardForSubcategory(category, i)
+      const leaderboard = await this.getLeaderboardForSubcategory(category, filterParams, i)
       runs = runs.concat(leaderboard.runList)
     }
 
     return runs.map(run => run.id)
+  }
+
+  /**
+   * Edits all runs in a category.
+   * @param category 
+   * @param editParams 
+   * @returns True if all runs were edited successfully, false otherwise
+   */
+  async editAllRunsInCategory (category: SpeedrunCategory, editParams: EditParams): Promise<boolean> {
+    const runs = await this.getAllRunsInCategory(category)
+    if (runs === null) {
+      return false
+    }
+
+    for (const runId of runs) {
+      await this.editRun(runId, editParams)
+    }
+  }
+
+  /**
+   * Moves a run to a new category using the internal variable IDs
+   * @param runId 
+   * @param oldCategory 
+   * @param newCategory 
+   * @returns True if the run was moved successfully, false otherwise
+   */
+  private async moveRunToCategoryWithId (runId: string, oldCategory: SpeedrunCategoryId, newCategory: SpeedrunCategoryId): Promise<boolean> {
+    const oldSettings = await this.getRunSettings(runId)
+    if (oldSettings === null) {
+      return false
+    }
+    
+    const subcategoryIds = {}
+    for (const subcategory of oldCategory.subcategories) {
+      subcategoryIds[subcategory.variableId] = subcategory.valueId
+    }
+
+    const newValues = oldSettings.values?.filter(value => {
+      return value.valueId !== subcategoryIds[value.variableId]
+    })?.concat(newCategory.subcategories.map(subcategory => ({
+      variableId: subcategory.variableId,
+      valueId: subcategory.valueId
+    })))
+
+    const moveResponse = await this.editRun(runId, {
+      categoryId: newCategory.categoryId,
+      values: newValues
+    })
+
+    if (!moveResponse) {
+      return false
+    }
+    return true
+  }
+
+  /**
+   * Move a run from a category to a new one.
+   * 
+   * Requires CSRF authentication.
+   * @param runId 
+   * @param oldCategory 
+   * @param newCategory 
+   * @returns True if the run was moved successfully, false otherwise
+   */
+  async moveRunToCategory (runId: string, oldCategory: SpeedrunCategory, newCategory: SpeedrunCategory): Promise<boolean> {
+    const oldCategoryId = await this.getSubcategoryIdFromNames(oldCategory)
+    if (oldCategoryId === null) {
+      return false
+    }
+    const newCategoryId = await this.getSubcategoryIdFromNames(newCategory)
+    if (newCategoryId === null) {
+      return false
+    }
+    return await this.moveRunToCategoryWithId(runId, oldCategoryId, newCategoryId)
+  }
+
+  /**
+   * Moves all runs from one category to another
+   * 
+   * Requires CSRF authentication.
+   * @param category 
+   * @param newCategory 
+   * @returns True if all runs were moved successfully, false otherwise
+   */
+  async moveAllRunsInCategory (category: SpeedrunCategory, newCategory: SpeedrunCategory): Promise<boolean> {
+    const runs = await this.getAllRunsInCategory(category)
+    if (runs === null) {
+      return false
+    }
+
+    const oldCategoryId = await this.getSubcategoryIdFromNames(category)
+    if (oldCategoryId === null) {
+      return false
+    }
+
+    const newCategoryId = await this.getSubcategoryIdFromNames(newCategory)
+    if (newCategoryId === null) {
+      return false
+    }
+
+    for (const runId of runs) {
+      await this.moveRunToCategoryWithId(runId, oldCategoryId, newCategoryId)
+    }
+
+    return true
   }
 }

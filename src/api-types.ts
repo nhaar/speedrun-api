@@ -12,9 +12,15 @@ enum VerificationStatus {
   Rejected = 2
 }
 
-enum ObsoleteFilterStatus {
+/**
+ * For filtering runs by obsolete status
+ */
+export enum ObsoleteFilterStatus {
+  /** Do not show obsolete */
   Hidden = 0,
+  /** Show obsolete */
   Shown = 1,
+  /** Show only obsolete */
   Exclusive = 2
 }
 
@@ -322,7 +328,7 @@ export interface RunSettings {
   values: {
     variableId: string
     valueId: string
-  }[]
+  }[] | null
 }
 
 export interface SettingsResponse {

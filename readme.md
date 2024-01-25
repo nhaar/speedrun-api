@@ -7,7 +7,7 @@ The library will be in development while it's in v0.
 ## Library Goals
 
 1. All regular endpoints supported with doc
-2. Able to move all runs from one category to another
+2. ~~Able to move all runs from one category to another~~ -> Should be working as of 0.1.x
 3. Moving all runs across games
 4. Able to edit all runs of one category/game
 5. Able to get all run information over time for a game and category
