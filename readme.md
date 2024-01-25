@@ -8,12 +8,13 @@ The library will be in development while it's in v0.
 
 1. All regular endpoints supported with doc
 2. Able to move all runs from one category to another
-3. Able to edit all runs of one category/game
-4. Able to get all run information over time for a game and category
-5. Get all pending runs or all newly submitted runs in a time frame
-6. Properly handle getting rate-limited
-7. Optimize functions in the end to minimize redundant requests
-8. More depending on suggestions
+3. Moving all runs across games
+4. Able to edit all runs of one category/game
+5. Able to get all run information over time for a game and category
+6. Get all pending runs or all newly submitted runs in a time frame
+7. Properly handle getting rate-limited
+8. Optimize functions in the end to minimize redundant requests
+9. More depending on suggestions
 
 ## Documentation
 
