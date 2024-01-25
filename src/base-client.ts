@@ -1,7 +1,7 @@
-import axios, { AxiosResponse } from "axios"
+import axios, { AxiosResponse } from 'axios'
 
-import { API_V2_URL } from "./constants"
-import { ArticleList, GameData, GameLeaderboard, ObsoleteFilterStatus, Run, RunSettings, VideoStatus } from "./api-types"
+import { API_V2_URL } from './constants'
+import { ArticleList, GameData, GameLeaderboard, ObsoleteFilterStatus, Run, RunSettings, VideoStatus } from './api-types'
 
 enum RequestMethod {
   GET,
@@ -81,7 +81,7 @@ export default class SpeedrunBaseClient {
     })
   }
 
-  private async sendRequest<T> (method: RequestMethod, route:string, options: {
+  private async sendRequest<T> (method: RequestMethod, route: string, options: {
     params?: RequestParams
     body?: RequestBody
     auth?: boolean

@@ -27,7 +27,7 @@ interface LeaderboardFilterParams {
 
 export default class SpeedrunClient {
   baseClient: SpeedrunBaseClient
-  
+
   constructor (sessionId: string = '', csrfToken: string = '') {
     this.baseClient = new SpeedrunBaseClient(sessionId, csrfToken)
   }
@@ -70,7 +70,6 @@ export default class SpeedrunClient {
 
     return null
   }
-
 
   /**
    * Edit a run's information.
@@ -122,7 +121,7 @@ export default class SpeedrunClient {
 
     // can't be null at this point since the check above worked
     const gameData = await this.getGameDataByUrl(gameUrl)
-    const values = gameData.values.filter(value => subcategoryVariables.some(variable => variable.id === value.variableId))
+    const values = gameData?.values.filter(value => subcategoryVariables.some(variable => variable.id === value.variableId)) ?? null
     return values
   }
 
@@ -217,7 +216,9 @@ export default class SpeedrunClient {
     const totalPages = leaderboard.pagination.pages
     for (let i = 2; i < totalPages; i++) {
       const leaderboard = await this.getLeaderboardForSubcategory(category, filterParams, i)
-      runs = runs.concat(leaderboard.runList)
+      if (leaderboard !== null) {
+        runs = runs.concat(leaderboard.runList)
+      }
     }
 
     return runs.map(run => run.id)
@@ -238,6 +239,8 @@ export default class SpeedrunClient {
     for (const runId of runs) {
       await this.editRun(runId, editParams)
     }
+
+    return true
   }
 
   /**

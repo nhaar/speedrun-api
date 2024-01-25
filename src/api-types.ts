@@ -230,20 +230,20 @@ export interface GameData {
   }
   categories: Category[]
   levels: Level[]
-  moderators: {
+  moderators: Array<{
     gameId: string
     userId: string
     level: any
-  }[]
+  }>
   platforms: Platform[]
   regions: Region[]
-  runCounts: {
+  runCounts: Array<{
     gameId: string
     categoryId: string
     variableId: string
     valueId: string
     count: number
-  }[]
+  }>
   theme: Theme
   users: ArticleUser[]
   values: Value[]
@@ -285,7 +285,7 @@ export interface Run {
  */
 export interface GameLeaderboard {
   runList: Run[]
-  playerList: {
+  playerList: Array<{
     id: string
     name: string
     url: string
@@ -295,7 +295,7 @@ export interface GameLeaderboard {
     colorAnimate: number
     areaId: string
     isSupporter: boolean | null
-  }[]
+  }>
   pagination: Pagination
 }
 
@@ -325,10 +325,10 @@ export interface RunSettings {
   video: string
   comment: string
   date: number
-  values: {
+  values: Array<{
     variableId: string
     valueId: string
-  }[] | null
+  }> | null
 }
 
 export interface SettingsResponse {
