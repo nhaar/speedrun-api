@@ -1,4 +1,4 @@
-This is an unofficial implementation of the API for Node.js, currently in development
+This project has been deprecated. While most of it might still work, there's no interest in maintaining and keeping support with future updates to the API.
 
 # Development
 
